@@ -31,6 +31,7 @@ import {MatButton, MatButtonModule} from '@angular/material/button';
     FormsModule,
     MatFormFieldModule,
     MatInputModule,
+    MatInputModule,
     MatIconModule,
     MatToolbarModule,
     MatCardModule,

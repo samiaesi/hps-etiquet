@@ -1,7 +1,6 @@
 import { Component } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -19,14 +18,14 @@ export class AppComponent {
   filteredData: any[] = [];
   nombreProfiles: number | null = null;
 
-
   clientName: string = 'Hasnaoui Profile Systems';
-  clientAddress: string = 'B.P 245 zone industrielle sba';
+  clientAddress: string = 'B.P 245 zone industrielle Sidi Bel Abbes';
   clientPostalCode: string = '22000 Sidi bel abbes';
   clientPhone: string = '+213 (0) 48 70 66 19';
   clientWebsite: string = 'https://www.hps-dz.com';
 
-  // Ajout de la colonne 'nombre'
+  fournisseurName: string = ''; // Champ pour le nom du fournisseur
+
   displayedColumns: string[] = [
     'systeme',
     'image',
@@ -51,9 +50,7 @@ export class AppComponent {
         const worksheet = workbook.Sheets[sheetName];
         this.data = XLSX.utils.sheet_to_json(worksheet);
 
-        // Initialise chaque item avec nombre = 1
         this.data = this.data.map(item => ({ ...item, nombre: 1 }));
-
         this.filteredData = this.data;
         this.saveDataToFirebase(this.data);
       };
@@ -76,16 +73,13 @@ export class AppComponent {
   }
 
   generatePDF(): void {
-
     let y = 10;
-
 
     const doc = new jsPDF({
       unit: 'mm',
       format: [250, 150],
     });
 
-// === En-tête client ===
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(this.clientName, 10, y);
@@ -102,6 +96,14 @@ export class AppComponent {
     doc.text(`Site Web: ${this.clientWebsite}`, 10, y);
     y += 8;
 
+    // Affichage du nom du fournisseur
+    if (this.fournisseurName.trim() !== '') {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(`Fournisseur : ${this.fournisseurName}`, 10, y);
+      y += 6;
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.text('Liste des articles', 10, y);
@@ -114,7 +116,6 @@ export class AppComponent {
       y += 7;
     }
 
-// === Préparer les données pour le tableau ===
     const tableColumns = ['#', 'Article', 'Référence', 'Finition', 'Quantité', 'Nombre'];
     const tableRows = this.selectedItems.map((item, i) => [
       `${i + 1}`,
@@ -125,43 +126,57 @@ export class AppComponent {
       item["nombre"] || 1,
     ]);
 
-// === Insérer le tableau avec autoTable ===
     autoTable(doc, {
       head: [tableColumns],
       body: tableRows,
       startY: y,
-      styles: { fontSize: 8, cellPadding: 1 },
-      headStyles: { fillColor: [200, 200, 200] },
-      margin: { left: 10, right: 10 },
+      styles: {
+        fontSize: 8,
+        cellPadding: 1,
+        textColor: 20,
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: 20,
+        fontStyle: 'bold',
+        lineWidth: 0.1,
+        lineColor: 20,
+      },
       theme: 'grid',
+      margin: { left: 10, right: 10 },
     });
 
-// === Ajouter la date et le footer à la fin ===
-    let finalY = 0;
-
-    if ((doc as any).lastAutoTable?.finalY) {
-      finalY = (doc as any).lastAutoTable.finalY + 10;
-    } else {
-      finalY = y + 10; // Fallback si la table n'a pas été générée
-    }
-
-
     const currentDate = new Date().toLocaleDateString('fr-FR');
+    const finalY = (doc as any).lastAutoTable?.finalY || y + 10;
+    const pageHeight = doc.internal.pageSize.height;
+    const footerY = pageHeight - 20;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Date : ${currentDate}`, 10, finalY);
-    finalY += 6;
+    doc.text(`Date : ${currentDate}`, 10, footerY);
 
     doc.setFontSize(8);
-    const footerText =
-      "Ce document représente la liste de colisage des articles sélectionnés. " +
-      "Il est fourni à titre informatif et ne constitue pas un bon de livraison officiel.";
+    const footerText = "Ce document représente la liste de colisage des articles.";
+    doc.text(doc.splitTextToSize(footerText, 230), 10, footerY + 6);
 
-    doc.text(doc.splitTextToSize(footerText, 80), 10, finalY);
-
-// === Sauvegarder le PDF ===
     doc.save('profiles-selectionnes.pdf');
+  }
+
+  onDragStart(event: any, item: any): void {
+    event.dataTransfer.setData('item', JSON.stringify(item));
+  }
+
+  onDrop(event: any): void {
+    event.preventDefault();
+    const itemData = event.dataTransfer.getData('item');
+    const item = JSON.parse(itemData);
+    if (!this.selectedItems.includes(item)) {
+      this.selectedItems.push(item);
+    }
+  }
+
+  onDragOver(event: any): void {
+    event.preventDefault();
   }
 
   filterDataByReference(): void {
