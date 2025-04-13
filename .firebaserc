@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "hps-etiq",
+    "firebase deploy --project dev": "dev-hps"
+  },
+  "targets": {},
+  "etags": {}
+}
