@@ -77,7 +77,7 @@ export class AppComponent {
 
     const doc = new jsPDF({
       unit: 'mm',
-      format: [250, 150],
+      format: [150, 100],
     });
 
     doc.setFontSize(12);
